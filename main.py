@@ -32,9 +32,9 @@ pygame.init()
 
 
 class DijkstraVertex:
-    def __init__(self, pos):
-        self.x = pos[0]
-        self.y = pos[1]
+    def __init__(self, pos_x, pos_y):
+        self.x = pos_x
+        self.y = pos_y
         self.dist = float("inf")
         self.visited = False
         self.parent = None
@@ -51,9 +51,9 @@ class DijkstraVertex:
 
 
 class AstarVertex:
-    def __init__(self, pos):
-        self.x = pos[0]
-        self.y = pos[1]
+    def __init__(self, pos_y, pos_x):
+        self.x = pos_x
+        self.y = pos_y
         self.edges = []
         self.distance = float("inf")
         self.heuristic = 0
@@ -74,29 +74,29 @@ class AstarVertex:
 
 
 def main_draw(window, board, path, was_here, at_start=False):
-    font = pygame.font.SysFont(None, int(min(TILE_WIDTH, TILE_HEIGHT)))
-
-    text_width, text_height = font.size(START)
-    align_start_x = TILE_WIDTH / 2 - text_width / 2
-    align_start_y = TILE_HEIGHT / 2 - text_height / 2
-
-    text_width, text_height = font.size(END)
-    align_end_x = TILE_WIDTH / 2 - text_width / 2
-    align_end_y = TILE_HEIGHT / 2 - text_height / 2
-
     window.fill(COLORS["BG_COLOR"])
 
-    for i, row in enumerate(board):
-        for j, col in enumerate(row):
+    font = pygame.font.SysFont(None, int(min(TILE_WIDTH, TILE_HEIGHT)))
+
+    text_width, text_height = font.size("O")
+    align_start_x = (TILE_WIDTH - text_width) / 2
+    align_start_y = (TILE_HEIGHT - text_height) / 2
+
+    text_width, text_height = font.size("X")
+    align_end_x = (TILE_WIDTH - text_width) / 2
+    align_end_y = (TILE_HEIGHT - text_height) / 2
+
+    for row_id, row in enumerate(board):
+        for col_id, col in enumerate(row):
             color = COLORS["TILE_COLOR"]
 
-            if (j, i) in path:
+            if (row_id, col_id) in path:
                 color = COLORS["GREEN"]
 
-            elif (j, i) in was_here:
+            elif (row_id, col_id) in was_here:
                 color = COLORS["ORANGE"]
 
-            elif col == WALL:
+            elif col == WALL or col == BORDER_WALL:
                 color = COLORS["WALL_TILE_COLOR"]
 
             elif col == END:
@@ -105,24 +105,40 @@ def main_draw(window, board, path, was_here, at_start=False):
             pygame.draw.rect(
                 window,
                 color,
-                (j * TILE_WIDTH, i * TILE_HEIGHT, TILE_WIDTH - 2, TILE_HEIGHT - 2),
+                (
+                    col_id * TILE_WIDTH,
+                    row_id * TILE_HEIGHT,
+                    TILE_WIDTH - 1,
+                    TILE_HEIGHT - 1,
+                ),
             )
 
             if col == START:
                 pygame.draw.rect(
                     window,
                     COLORS["GREEN"],
-                    (j * TILE_WIDTH, i * TILE_HEIGHT, TILE_WIDTH - 2, TILE_HEIGHT - 2),
+                    (
+                        col_id * TILE_WIDTH,
+                        row_id * TILE_HEIGHT,
+                        TILE_WIDTH - 1,
+                        TILE_HEIGHT - 1,
+                    ),
                 )
                 window.blit(
-                    font.render(START, True, COLORS["TEXT_COLOR"]),
-                    (j * TILE_WIDTH + align_start_x, i * TILE_HEIGHT + align_start_y),
+                    font.render("O", True, COLORS["TEXT_COLOR"]),
+                    (
+                        col_id * TILE_WIDTH + align_start_x,
+                        row_id * TILE_HEIGHT + align_start_y,
+                    ),
                 )
 
             elif col == END:
                 window.blit(
-                    font.render(END, True, COLORS["TEXT_COLOR"]),
-                    (j * TILE_WIDTH + align_end_x, i * TILE_HEIGHT + align_end_y),
+                    font.render("X", True, COLORS["TEXT_COLOR"]),
+                    (
+                        col_id * TILE_WIDTH + align_end_x,
+                        row_id * TILE_HEIGHT + align_end_y,
+                    ),
                 )
 
     if not at_start:
@@ -157,10 +173,10 @@ def select_pos_text(window, text):
     pygame.draw.rect(
         window,
         COLORS["TEXT_BG_COLOR"],
-        (WIDTH / 2 - text_width / 2 - 10, 0, text_width + 20, text_height + 20),
+        ((WIDTH - text_width) / 2 - 10, 0, text_width + 20, text_height + 20),
     )
     window.blit(
-        font.render(text, True, COLORS["TEXT_COLOR"]), (WIDTH / 2 - text_width / 2, 10)
+        font.render(text, True, COLORS["TEXT_COLOR"]), ((WIDTH - text_width) / 2, 10)
     )
 
 
@@ -171,24 +187,27 @@ def start_button(window):
     pygame.draw.rect(
         window,
         COLORS["TEXT_BG_COLOR"],
-        (WIDTH / 2 - text_width / 2 - 10, 0, text_width + 20, text_height + 20),
+        (WIDTH - text_width) / 2 - 10,
+        0,
+        text_width + 20,
+        text_height + 20,
     )
     window.blit(
         font.render("Ready", True, COLORS["TEXT_COLOR"]),
-        (WIDTH / 2 - text_width / 2, 10),
+        ((WIDTH - text_width) / 2, 10),
     )
 
     return (
-        WIDTH / 2 - text_width / 2 - 10,
+        (WIDTH - text_width) / 2 - 10,
         0,
-        WIDTH / 2 + text_width / 2 + 10,
+        (WIDTH + text_width) / 2 + 10,
         text_height + 20,
     )  # x1 y1 x2 y2
 
 
 def find_neighbors(board, pos, move_diagonally=False):
     neighbors = []
-    x, y = pos
+    y, x = pos
 
     if move_diagonally:
         possibleMoves = [
@@ -204,18 +223,19 @@ def find_neighbors(board, pos, move_diagonally=False):
     else:
         possibleMoves = [(-1, 0), (0, -1), (1, 0), (0, 1)]
 
-    for dx, dy in possibleMoves:
-        new_x = x + dx
+    for dy, dx in possibleMoves:
         new_y = y + dy
+        new_x = x + dx
 
-        if board[new_y, new_x] != WALL:
-            neighbors.append((new_x, new_y))
+        if board[new_y, new_x] != WALL and board[new_y, new_x] != BORDER_WALL:
+            neighbors.append((new_y, new_x))
 
     return neighbors
 
 
 def find_value(board, value):
-    return np.where(board == value)
+    y_indices, x_indices = np.where(board == value)
+    return y_indices[0], x_indices[0]
 
 
 def breadth_first_search(window, clock, board, showProcess):
@@ -232,10 +252,12 @@ def breadth_first_search(window, clock, board, showProcess):
                 pygame.quit()
 
         current_pos, path = q.get()
+
         if current_pos == end_pos:
             break
         elif current_pos in visited:
             continue
+
         visited.append(current_pos)
 
         if showProcess:
@@ -258,8 +280,7 @@ def depth_first_search(window, clock, board, showProcess):
     end_pos = find_value(board, END)
 
     visited = []
-    stack = []
-    stack.append((start_pos, [start_pos]))
+    stack = [(start_pos, [start_pos])]
 
     while len(stack) > 0:
         for event in pygame.event.get():
@@ -267,10 +288,12 @@ def depth_first_search(window, clock, board, showProcess):
                 pygame.quit()
 
         current_pos, path = stack.pop()
+
         if current_pos == end_pos:
             break
         elif current_pos in visited:
             continue
+
         visited.append(current_pos)
 
         if showProcess:
@@ -294,14 +317,33 @@ def depth_first_search(window, clock, board, showProcess):
     main_draw(window, board, path, visited)
 
 
-def find_edges(board, vertices, vertex):
+def find_edges(board, vertices, vertex, move_diagonally=False):
+    if board[vertex.y, vertex.x] == BORDER_WALL:
+        return []
+
+    if move_diagonally:
+        possible_moves = [
+            (-1, 0),
+            (-1, -1),
+            (0, -1),
+            (1, -1),
+            (1, 0),
+            (1, 1),
+            (0, 1),
+            (-1, 1),
+        ]
+    else:
+        possible_moves = [(-1, 0), (0, -1), (1, 0), (0, 1)]
+
     edges = []
-    for dx, dy in [(0, -1), (1, 0), (0, 1), (-1, 0)]:
-        x = vertex.x + dx
-        y = vertex.y + dy
-        if 0 <= x < len(board[0]) and 0 <= y < len(board) and board[y][x] != WALL:
-            edges.append((x, y))
-    return [vertices[y][x] for x, y in edges]
+    for dy, dx in possible_moves:
+        new_y = vertex.y + dy
+        new_x = vertex.x + dx
+
+        if board[new_y, new_x] != WALL and board[new_y, new_x] != BORDER_WALL:
+            edges.append((new_y, new_x))
+
+    return [vertices[y][x] for y, x in edges]
 
 
 def dijkstra_search(window, clock, board, showProcess):
@@ -309,27 +351,28 @@ def dijkstra_search(window, clock, board, showProcess):
     end_pos = find_value(board, END)
 
     rows, cols = len(board), len(board[0])
-    vertices = [[DijkstraVertex((x, y)) for x in range(cols)] for y in range(rows)]
+    vertices = [[DijkstraVertex(y, x) for x in range(cols)] for y in range(rows)]
 
     for row in vertices:
         for col in row:
             col.edges = find_edges(board, vertices, col)
 
-    start_vertex = vertices[start_pos[1]][start_pos[0]]
+    start_vertex = vertices[start_pos[0]][start_pos[1]]
     start_vertex.dist = 0
-    end_vertex = vertices[end_pos[1]][end_pos[0]]
+    end_vertex = vertices[end_pos[0]][end_pos[1]]
 
-    q = queue.Queue()
-    q.put(start_vertex)
+    pq = queue.PriorityQueue()
+    pq.put((0, start_vertex))
 
     path = []
     visited = []
-    while not q.empty():
+
+    while not pq.empty():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
 
-        current = q.get()
+        _, current = pq.get()
 
         if current == end_vertex:
             while current.parent:
@@ -339,6 +382,7 @@ def dijkstra_search(window, clock, board, showProcess):
             break
         elif current.get_pos() in visited:
             continue
+
         current.visited = True
         visited.append(current.get_pos())
 
@@ -348,10 +392,10 @@ def dijkstra_search(window, clock, board, showProcess):
 
         for neighbor in current.edges:
             new_dist = current.dist + 1
-            if new_dist < neighbor.dist:
-                neighbor.dist = new_dist
-                neighbor.parent = current
-                q.put(neighbor)
+
+            neighbor.dist = new_dist
+            neighbor.parent = current
+            pq.put((new_dist, neighbor))
 
     else:
         main_draw(window, board, [], visited)
@@ -365,7 +409,7 @@ def a_star_search(window, clock, board, showProcess):
     end_pos = find_value(board, END)
 
     rows, cols = len(board), len(board[0])
-    vertices = [[AstarVertex((x, y)) for x in range(cols)] for y in range(rows)]
+    vertices = [[AstarVertex(y, x) for x in range(cols)] for y in range(rows)]
 
     startVertex = vertices[start_pos[1]][start_pos[0]]
     startVertex.distance = 0
@@ -378,6 +422,7 @@ def a_star_search(window, clock, board, showProcess):
 
     pq = queue.PriorityQueue()
     pq.put(startVertex)
+
     path = []
     visited = []
 
@@ -405,6 +450,7 @@ def a_star_search(window, clock, board, showProcess):
         for edge in current.edges:
             cost = current.distance + 1
             heuristic = edge.heuristic
+
             if cost < edge.distance:
                 edge.distance = cost
                 edge.parent = current
@@ -432,10 +478,12 @@ def randomize_board(board, board_height, board_width):
         row, col = interior_indices[idx]
         board[row, col] = WALL
 
-    start_pos, end_pos = np.random.choice(len(interior_indices), size=2, replace=False)
+    start_pos_index, end_pos_index = np.random.choice(
+        len(interior_indices), size=2, replace=False
+    )
 
-    board[start_pos] = START
-    board[end_pos] = END
+    board[interior_indices[start_pos_index]] = START
+    board[interior_indices[end_pos_index]] = END
 
     return board
 
@@ -482,7 +530,7 @@ def draw_board(board, window, clock):
         clock.tick(60)
 
 
-def get_board(is_draw_maze, window, clock):
+def get_board(is_draw_maze, window, clock, settings):
     # set board width and height / +2 because I add borders around the board
     board_width, board_height = settings["width"] + 2, settings["height"] + 2
     board = np.full(shape=(board_height, board_height), fill_value=TILE)
@@ -519,6 +567,7 @@ def main():
     try:
         with open("settings.json", "r") as file:
             settings = json.load(file)
+        os.remove("settings.json")
     except FileNotFoundError:
         print("Settings file not found")
         return
@@ -531,7 +580,7 @@ def main():
     pygame.display.set_caption("PATHFINDING ALGORITHM")
 
     # loads the board depending on
-    board = get_board(is_draw_maze, window, clock)
+    board = get_board(is_draw_maze, window, clock, settings)
 
     # print the board before algorithms
     main_draw(window, board, [], [])

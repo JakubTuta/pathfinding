@@ -23,12 +23,12 @@ def start_algorithm(
     settings = {}
     settings["width"] = width
     settings["height"] = height
-    settings["showProcess"] = is_show_process
-    settings["chooseAlgorithm"] = choose_algorithm
-    settings["drawMaze"] = is_draw_maze
+    settings["is_show_process"] = is_show_process
+    settings["choose_algorithm"] = choose_algorithm
+    settings["is_draw_maze"] = is_draw_maze
 
     with open("settings.json", "w") as file:
-        json.dump(settings, file)
+        json.dump(settings, file, indent=4)
 
     root.destroy()
 
@@ -61,13 +61,13 @@ def settings():
         row=3, column=0, padx=10, pady=10, columnspan=2, sticky=tk.W
     )
 
-    choose_algorithm = tk.StringVar(value="breadth first")
+    choose_algorithm = tk.StringVar(value="breadth_first_search")
 
     tk.Radiobutton(
         root,
         text="Breadth first search",
         variable=choose_algorithm,
-        value="breadth first",
+        value="breadth_first_search",
         font=smaller_font,
     ).grid(row=4, column=0, padx=10, pady=10, sticky=tk.W)
 
@@ -75,7 +75,7 @@ def settings():
         root,
         text="Depth first search",
         variable=choose_algorithm,
-        value="depth first",
+        value="depth_first_search",
         font=smaller_font,
     ).grid(row=5, column=0, padx=10, pady=10, sticky=tk.W)
 
@@ -83,7 +83,7 @@ def settings():
         root,
         text="Dijkstra's algorithm",
         variable=choose_algorithm,
-        value="dijkstra",
+        value="dijkstra_search",
         font=smaller_font,
     ).grid(row=6, column=0, padx=10, pady=10, sticky=tk.W)
 
@@ -91,7 +91,7 @@ def settings():
         root,
         text="A* algorithm",
         variable=choose_algorithm,
-        value="a*",
+        value="a_star_search",
         font=smaller_font,
     ).grid(row=7, column=0, padx=10, pady=10, sticky=tk.W)
 
