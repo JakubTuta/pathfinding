@@ -35,13 +35,13 @@ class DijkstraVertex:
     def __init__(self, pos_x, pos_y):
         self.x = pos_x
         self.y = pos_y
-        self.dist = float("inf")
+        self.distance = float("inf")
         self.visited = False
         self.parent = None
         self.edges = []
 
     def __lt__(self, other):
-        return self.dist < other.dist
+        return self.distance < other.distance
 
     def __eq__(self, other):
         return self.x == other.x and self.y == other.y
@@ -206,22 +206,22 @@ def start_button(window):
 
 
 def find_neighbors(board, pos, move_diagonally=False):
-    neighbors = []
-    y, x = pos
-
     if move_diagonally:
         possibleMoves = [
             (-1, 0),
-            (-1, -1),
-            (0, -1),
-            (1, -1),
-            (1, 0),
-            (1, 1),
-            (0, 1),
             (-1, 1),
+            (0, 1),
+            (1, 1),
+            (1, 0),
+            (1, -1),
+            (0, -1),
+            (-1, -1),
         ]
     else:
-        possibleMoves = [(-1, 0), (0, -1), (1, 0), (0, 1)]
+        possibleMoves = [(-1, 0), (0, 1), (1, 0), (0, -1)]
+
+    neighbors = []
+    y, x = pos
 
     for dy, dx in possibleMoves:
         new_y = y + dy
@@ -318,22 +318,22 @@ def depth_first_search(window, clock, board, showProcess):
 
 
 def find_edges(board, vertices, vertex, move_diagonally=False):
-    if board[vertex.y, vertex.x] == BORDER_WALL:
+    if board[vertex.y, vertex.x] == BORDER_WALL or board[vertex.y, vertex.x] == WALL:
         return []
 
     if move_diagonally:
         possible_moves = [
             (-1, 0),
-            (-1, -1),
-            (0, -1),
-            (1, -1),
-            (1, 0),
-            (1, 1),
-            (0, 1),
             (-1, 1),
+            (0, 1),
+            (1, 1),
+            (1, 0),
+            (1, -1),
+            (0, -1),
+            (-1, -1),
         ]
     else:
-        possible_moves = [(-1, 0), (0, -1), (1, 0), (0, 1)]
+        possible_moves = [(-1, 0), (0, 1), (1, 0), (0, -1)]
 
     edges = []
     for dy, dx in possible_moves:
@@ -343,26 +343,28 @@ def find_edges(board, vertices, vertex, move_diagonally=False):
         if board[new_y, new_x] != WALL and board[new_y, new_x] != BORDER_WALL:
             edges.append((new_y, new_x))
 
-    return [vertices[y][x] for y, x in edges]
+    return [vertices[y, x] for y, x in edges]
 
 
 def dijkstra_search(window, clock, board, showProcess):
     start_pos = find_value(board, START)
     end_pos = find_value(board, END)
 
-    rows, cols = len(board), len(board[0])
-    vertices = [[DijkstraVertex(y, x) for x in range(cols)] for y in range(rows)]
+    rows, cols = board.shape
+    vertices = np.array(
+        [[DijkstraVertex(x, y) for x in range(cols)] for y in range(rows)]
+    )
 
     for row in vertices:
         for col in row:
             col.edges = find_edges(board, vertices, col)
 
-    start_vertex = vertices[start_pos[0]][start_pos[1]]
-    start_vertex.dist = 0
-    end_vertex = vertices[end_pos[0]][end_pos[1]]
+    start_vertex = vertices[start_pos[1], start_pos[0]]
+    start_vertex.distance = 0
+    end_vertex = vertices[end_pos[1], end_pos[0]]
 
     pq = queue.PriorityQueue()
-    pq.put((0, start_vertex))
+    pq.put((start_vertex.distance, start_vertex))
 
     path = []
     visited = []
@@ -372,7 +374,7 @@ def dijkstra_search(window, clock, board, showProcess):
             if event.type == pygame.QUIT:
                 pygame.quit()
 
-        _, current = pq.get()
+        current_cost, current = pq.get()
 
         if current == end_vertex:
             while current.parent:
@@ -380,7 +382,7 @@ def dijkstra_search(window, clock, board, showProcess):
                 current = current.parent
             path.append(current.get_pos())
             break
-        elif current.get_pos() in visited:
+        elif current.visited:
             continue
 
         current.visited = True
@@ -390,12 +392,14 @@ def dijkstra_search(window, clock, board, showProcess):
             main_draw(window, board, [], visited)
             clock.tick(FPS)
 
-        for neighbor in current.edges:
-            new_dist = current.dist + 1
+        for edge in current.edges:
+            if not edge.visited:
+                new_distance = current_cost + 1
 
-            neighbor.dist = new_dist
-            neighbor.parent = current
-            pq.put((new_dist, neighbor))
+                if new_distance < edge.distance:
+                    edge.distance = new_distance
+                    edge.parent = current
+                    pq.put((edge.distance, edge))
 
     else:
         main_draw(window, board, [], visited)
@@ -409,11 +413,11 @@ def a_star_search(window, clock, board, showProcess):
     end_pos = find_value(board, END)
 
     rows, cols = len(board), len(board[0])
-    vertices = [[AstarVertex(y, x) for x in range(cols)] for y in range(rows)]
+    vertices = np.array([[AstarVertex(x, y) for x in range(cols)] for y in range(rows)])
 
-    startVertex = vertices[start_pos[1]][start_pos[0]]
+    startVertex = vertices[start_pos[1], start_pos[0]]
     startVertex.distance = 0
-    endVertex = vertices[end_pos[1]][end_pos[0]]
+    endVertex = vertices[end_pos[1], end_pos[0]]
 
     for row in vertices:
         for col in row:
@@ -421,7 +425,7 @@ def a_star_search(window, clock, board, showProcess):
             col.set_heuristic(endVertex)
 
     pq = queue.PriorityQueue()
-    pq.put(startVertex)
+    pq.put((startVertex.distance, startVertex))
 
     path = []
     visited = []
@@ -431,31 +435,31 @@ def a_star_search(window, clock, board, showProcess):
             if event.type == pygame.QUIT:
                 pygame.quit()
 
-        current = pq.get()
+        current_distance, current = pq.get()
 
         if current == endVertex:
-            while current:
+            while current.parent:
                 path.append(current.get_pos())
                 current = current.parent
             break
-        elif current.get_pos() in visited:
+        elif current.visited:
             continue
+
         current.visited = True
         visited.append(current.get_pos())
 
         if showProcess:
-            clock.tick(FPS)
             main_draw(window, board, [], visited)
+            clock.tick(FPS)
 
         for edge in current.edges:
-            cost = current.distance + 1
-            heuristic = edge.heuristic
+            new_distance = current_distance + 1
 
-            if cost < edge.distance:
-                edge.distance = cost
+            if new_distance < edge.distance:
+                edge.distance = new_distance
                 edge.parent = current
-                edge.heuristic = heuristic
-                pq.put(edge)
+                edge.heuristic += new_distance
+                pq.put((edge.distance, edge))
 
     else:
         main_draw(window, board, [], visited)
@@ -531,7 +535,8 @@ def draw_board(board, window, clock):
 
 
 def get_board(is_draw_maze, window, clock, settings):
-    # set board width and height / +2 because I add borders around the board
+    # set board width and height
+    # +2 because I add borders around the board
     board_width, board_height = settings["width"] + 2, settings["height"] + 2
     board = np.full(shape=(board_height, board_height), fill_value=TILE)
 
