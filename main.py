@@ -32,7 +32,7 @@ pygame.init()
 
 
 class DijkstraVertex:
-    def __init__(self, pos_x, pos_y):
+    def __init__(self, pos_y, pos_x):
         self.x = pos_x
         self.y = pos_y
         self.distance = float("inf")
@@ -47,7 +47,7 @@ class DijkstraVertex:
         return self.x == other.x and self.y == other.y
 
     def get_pos(self):
-        return (self.x, self.y)
+        return (self.y, self.x)
 
 
 class AstarVertex:
@@ -70,7 +70,7 @@ class AstarVertex:
         self.heuristic = abs(self.x - goal.x) + abs(self.y - goal.y)
 
     def get_pos(self):
-        return (self.x, self.y)
+        return (self.y, self.x)
 
 
 def main_draw(window, board, path, was_here, at_start=False):
@@ -148,9 +148,19 @@ def main_draw(window, board, path, was_here, at_start=False):
 def mouse_pressed(mouse_pos, board, value):
     row, col = int(mouse_pos[1] / TILE_HEIGHT), int(mouse_pos[0] / TILE_WIDTH)
 
-    if board[row, col] != BORDER_WALL:
+    if board[row, col] == BORDER_WALL:
+        return None
+
+    if (value == START or value == END) and board[row, col] == TILE:
         board[row, col] = value
         return row, col
+
+    elif (
+        (value == TILE or value == WALL)
+        and board[row, col] != START
+        and board[row, col] != END
+    ):
+        board[row, col] = value
 
 
 def select_pos_text(window, text):
@@ -174,10 +184,7 @@ def start_button(window):
     pygame.draw.rect(
         window,
         COLORS["TEXT_BG_COLOR"],
-        (WIDTH - text_width) / 2 - 10,
-        0,
-        text_width + 20,
-        text_height + 20,
+        ((WIDTH - text_width) / 2 - 10, 0, text_width + 20, text_height + 20),
     )
     window.blit(
         font.render("Ready", True, COLORS["TEXT_COLOR"]),
@@ -305,7 +312,7 @@ def depth_first_search(window, clock, board, showProcess):
 
 
 def find_edges(board, vertices, vertex, move_diagonally=False):
-    if board[vertex.y, vertex.x] == BORDER_WALL or board[vertex.y, vertex.x] == WALL:
+    if board[vertex.get_pos()] == BORDER_WALL or board[vertex.get_pos()] == WALL:
         return []
 
     if move_diagonally:
@@ -323,9 +330,11 @@ def find_edges(board, vertices, vertex, move_diagonally=False):
         possible_moves = [(-1, 0), (0, 1), (1, 0), (0, -1)]
 
     edges = []
+    y, x = vertex.get_pos()
+
     for dy, dx in possible_moves:
-        new_y = vertex.y + dy
-        new_x = vertex.x + dx
+        new_y = y + dy
+        new_x = x + dx
 
         if board[new_y, new_x] != WALL and board[new_y, new_x] != BORDER_WALL:
             edges.append((new_y, new_x))
@@ -339,16 +348,16 @@ def dijkstra_search(window, clock, board, showProcess):
 
     rows, cols = board.shape
     vertices = np.array(
-        [[DijkstraVertex(x, y) for x in range(cols)] for y in range(rows)]
+        [[DijkstraVertex(y, x) for x in range(cols)] for y in range(rows)]
     )
 
     for row in vertices:
         for col in row:
             col.edges = find_edges(board, vertices, col)
 
-    start_vertex = vertices[start_pos[1], start_pos[0]]
+    start_vertex = vertices[start_pos]
     start_vertex.distance = 0
-    end_vertex = vertices[end_pos[1], end_pos[0]]
+    end_vertex = vertices[end_pos]
 
     pq = queue.PriorityQueue()
     pq.put((start_vertex.distance, start_vertex))
@@ -398,11 +407,11 @@ def a_star_search(window, clock, board, showProcess):
     end_pos = find_value(board, END)
 
     rows, cols = board.shape
-    vertices = np.array([[AstarVertex(x, y) for x in range(cols)] for y in range(rows)])
+    vertices = np.array([[AstarVertex(y, x) for x in range(cols)] for y in range(rows)])
 
-    startVertex = vertices[start_pos[1], start_pos[0]]
+    startVertex = vertices[start_pos]
     startVertex.distance = 0
-    endVertex = vertices[end_pos[1], end_pos[0]]
+    endVertex = vertices[end_pos]
 
     for row in vertices:
         for col in row:
@@ -410,7 +419,7 @@ def a_star_search(window, clock, board, showProcess):
             col.set_heuristic(endVertex)
 
     pq = queue.PriorityQueue()
-    pq.put((startVertex.distance, startVertex))
+    pq.put((startVertex.heuristic, startVertex))
 
     path = []
     visited = []
@@ -426,6 +435,7 @@ def a_star_search(window, clock, board, showProcess):
             while current.parent:
                 path.append(current.get_pos())
                 current = current.parent
+            path.append(current.get_pos())
             break
 
         current.visited = True
@@ -436,13 +446,14 @@ def a_star_search(window, clock, board, showProcess):
             clock.tick(FPS)
 
         for edge in current.edges:
-            new_distance = current_distance + 1
+            if not edge.visited:
+                new_distance = current_distance + 1
 
-            if new_distance < edge.distance:
-                edge.distance = new_distance
-                edge.parent = current
-                edge.heuristic += new_distance
-                pq.put((edge.distance, edge))
+                if new_distance < edge.distance:
+                    edge.distance = new_distance
+                    edge.parent = current
+                    edge.heuristic -= new_distance
+                    pq.put((edge.heuristic, edge))
 
     else:
         main_draw(window, board, [], visited)
@@ -451,7 +462,7 @@ def a_star_search(window, clock, board, showProcess):
 
 
 def randomize_board(board, board_height, board_width):
-    num_walls = int(board.shape[0] * board.shape[1] * 0.3)
+    num_walls = int(board.shape[0] * board.shape[1] * 0.1)
     interior_indices = [
         (row, col)
         for row in range(1, board_height - 1)
@@ -514,10 +525,10 @@ def draw_board(board, window, clock):
         if any(pygame.mouse.get_pressed()):
             mouse_pos = pygame.mouse.get_pos()
 
-            if start_pos == None:
+            if start_pos is None:
                 start_pos = mouse_pressed(mouse_pos, board, START)
 
-            elif end_pos == None:
+            elif end_pos is None:
                 end_pos = mouse_pressed(mouse_pos, board, END)
 
             else:
@@ -527,13 +538,16 @@ def draw_board(board, window, clock):
                 ):
                     break
 
-                if pygame.mouse.get_pressed() == 0:
+                if pygame.mouse.get_pressed()[0]:
                     mouse_pressed(mouse_pos, board, WALL)
-                elif pygame.mouse.get_pressed() == 2:
+
+                elif pygame.mouse.get_pressed()[2]:
                     mouse_pressed(mouse_pos, board, TILE)
 
         pygame.display.update()
         clock.tick(60)
+
+    return board
 
 
 def get_board(is_draw_maze, window, clock, settings):
