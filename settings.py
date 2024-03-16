@@ -8,17 +8,22 @@ smaller_font = ("Arial", 12, "italic")
 def start_algorithm(
     root, width, height, is_show_process, choose_algorithm, is_draw_maze
 ):
-    try:
-        width = int(width)
+    if choose_algorithm != "file":
+        try:
+            width = int(width)
+            height = int(height)
+        except:
+            return
+
+        if width < 2 or width > 50 or height < 2 or height > 50:
+            return
+
         height = int(height)
-    except:
-        return
+        width = int(width)
 
-    if width < 2 or width > 50 or height < 2 or height > 50:
-        return
-
-    height = int(height)
-    width = int(width)
+    else:
+        width = 0
+        height = 0
 
     settings = {}
     settings["width"] = width

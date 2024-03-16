@@ -20,7 +20,7 @@ BORDER_WALL = 4
 COLORS = {
     "BG_COLOR": (255, 255, 255),
     "TILE_COLOR": (210, 210, 210),
-    "WALL_TILE_COLOR": (128, 128, 128),
+    "WALL_COLOR": (128, 128, 128),
     "TEXT_BG_COLOR": (150, 150, 150),
     "TEXT_COLOR": (0, 0, 0),
     "GREEN": (0, 255, 0),
@@ -97,7 +97,7 @@ def main_draw(window, board, path, was_here, at_start=False):
                 color = COLORS["ORANGE"]
 
             elif col == WALL or col == BORDER_WALL:
-                color = COLORS["WALL_TILE_COLOR"]
+                color = COLORS["WALL_COLOR"]
 
             elif col == END:
                 color = COLORS["RED"]
@@ -143,19 +143,6 @@ def main_draw(window, board, path, was_here, at_start=False):
 
     if not at_start:
         pygame.display.update()
-
-
-def load_maze_from_file():
-    files = os.listdir("maze")
-    file = np.random.choice(files)
-
-    with open(f"maze/{file}", "r") as f:
-        board = f.readlines()
-
-    for row in range(len(board)):
-        board[row] = board[row].rstrip("\n")
-
-    return board
 
 
 def mouse_pressed(mouse_pos, board, value):
@@ -382,8 +369,6 @@ def dijkstra_search(window, clock, board, showProcess):
                 current = current.parent
             path.append(current.get_pos())
             break
-        elif current.visited:
-            continue
 
         current.visited = True
         visited.append(current.get_pos())
@@ -412,7 +397,7 @@ def a_star_search(window, clock, board, showProcess):
     start_pos = find_value(board, START)
     end_pos = find_value(board, END)
 
-    rows, cols = len(board), len(board[0])
+    rows, cols = board.shape
     vertices = np.array([[AstarVertex(x, y) for x in range(cols)] for y in range(rows)])
 
     startVertex = vertices[start_pos[1], start_pos[0]]
@@ -442,8 +427,6 @@ def a_star_search(window, clock, board, showProcess):
                 path.append(current.get_pos())
                 current = current.parent
             break
-        elif current.visited:
-            continue
 
         current.visited = True
         visited.append(current.get_pos())
@@ -490,6 +473,25 @@ def randomize_board(board, board_height, board_width):
     board[interior_indices[end_pos_index]] = END
 
     return board
+
+
+def load_maze_from_file():
+    files = os.listdir("maze")
+    file = np.random.choice(files)
+
+    with open(f"maze/{file}", "r") as f:
+        maze = [list(line.rstrip("\n")) for line in f]
+
+    maze = np.array(maze)
+
+    maze[maze == "X"] = END
+    maze[maze == "O"] = START
+    maze[maze == "#"] = WALL
+    maze[maze == " "] = TILE
+
+    maze = np.pad(maze, pad_width=1, constant_values=BORDER_WALL)
+
+    return maze.astype(np.uint8)
 
 
 def draw_board(board, window, clock):
